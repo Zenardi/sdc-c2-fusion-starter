@@ -1,15 +1,303 @@
-# Writeup: Track 3D-Objects Over Time
+# Writeup: Mid-Term Project - 3D Object Detection
 
-Please use this starter template to answer the following questions:
+## Overview
 
-### 1. Write a short recap of the four tracking steps and what you implemented there (filter, track management, association, camera fusion). Which results did you achieve? Which part of the project was most difficult for you to complete, and why?
+I completed the required student implementations for Steps 1 through 4 in:
 
+- `student/objdet_pcl.py`
+- `student/objdet_detect.py`
+- `student/objdet_eval.py`
 
-### 2. Do you see any benefits in camera-lidar fusion compared to lidar-only tracking (in theory and in your concrete results)? 
+I also fixed the local Python environment so the project runs reliably in this repository:
 
+- replaced `pytorch` with `torch`
+- pinned `protobuf==3.20.3` for compatibility with the bundled Waymo reader
+- removed the unused `wxpython` dependency
+- changed the evaluation plotting backend to a safe Matplotlib backend instead of hard-coding `wxagg`
 
-### 3. Which challenges will a sensor fusion system face in real-life scenarios? Did you see any of these challenges in the project?
+For validation, the repository contains Waymo `.tfrecord` files under `dataset/` and cached artifacts under `results/`. Local pretrained `.pth` files are still missing under `tools/objdet_models/**/pretrained/`, so the live `fpn_resnet` inference path could not be demonstrated end-to-end with local weights. I therefore validated the implementation with real dataset frames, cached intermediate outputs, cached detections, and synthetic smoke tests.
 
+## Step 1: Compute lidar point-cloud from range image
 
-### 4. Can you think of ways to improve your tracking results in the future?
+### ID_S1_EX1 - Visualize range image channels
 
+Implemented in `student/objdet_pcl.py::show_range_image`.
+
+What I implemented:
+
+- extracted the TOP lidar range image from the Waymo frame
+- separated range and intensity channels
+- clipped invalid negative values
+- normalized range to 8-bit output
+- normalized intensity with percentile clipping to avoid outlier domination
+- stacked range and intensity vertically into a single display image
+
+Validation on real data:
+
+- executed `show_range_image(...)` on frame 0 of sequence 1
+- output shape: `(128, 2650)`
+- output dtype: `uint8`
+- output value range: `0` to `255`
+
+![Stacked range and intensity image for sequence 1 frame 0](img/writeup/range_image_frame0.png)
+
+> [!NOTE] 
+> **Observation**:
+> The range channel makes vehicles appear as compact depth-consistent structures, while the intensity channel emphasizes small reflective patches and sharp surfaces. Compared with the range image, the intensity image is sparser, but it is useful for separating strong returns on vehicle boundaries from lower-return background regions.
+
+### ID_S1_EX2 - Visualize lidar point-cloud
+
+Implemented in `student/objdet_pcl.py::show_pcl`.
+
+What I implemented:
+
+- added an Open3D visualizer with a right-arrow callback for stepping through frames
+- created the point-cloud geometry lazily
+- reused the same geometry object across frames
+- updated points in place instead of rebuilding the viewer every iteration
+
+To satisfy the writeup requirement, I extracted ten real vehicle examples with varying visibility from cached lidar point clouds. The figure below shows a local crop around each vehicle. Gray points provide context; colored points are lidar returns inside the labeled vehicle box, colored by intensity.
+
+![Ten vehicle point-cloud examples with varying visibility](img/writeup/vehicle_visibility_examples.png)
+
+| Example | Frame | In-box points | Distance [m] | Visibility |
+| --- | ---: | ---: | ---: | --- |
+| 1 | 131 | 3 | 61.55 | very sparse |
+| 2 | 35 | 23 | 51.23 | sparse |
+| 3 | 55 | 51 | 51.01 | moderate |
+| 4 | 152 | 84 | 74.56 | moderate |
+| 5 | 80 | 140 | 51.06 | moderate |
+| 6 | 197 | 230 | 40.03 | moderate |
+| 7 | 4 | 431 | 32.71 | good |
+| 8 | 159 | 751 | 25.24 | good |
+| 9 | 63 | 1362 | 19.26 | good |
+| 10 | 50 | 4621 | 9.35 | dense |
+
+Qualitative findings from these ten examples:
+
+- At long range, visibility drops quickly. The sparsest vehicles at roughly `50-75 m` are represented by only a few points, usually on outer corners or one exposed face.
+- Around `40-55 m`, vehicles become more recognizable, but only partial structure is visible. Typical returns outline one side wall, the rear/front edge, and part of the roofline.
+- Inside roughly `20-35 m`, the rectangular footprint becomes stable and dense enough that the vehicle extent is easy to estimate directly from the point cloud.
+- The closest example (`9.35 m`) preserves the full footprint and multiple vertical surfaces, which is why near vehicles are much easier for the downstream BEV detector and evaluation pipeline.
+
+To inspect the stable features more closely, I rendered the densest example in a vehicle-local coordinate frame:
+
+![Representative dense vehicle with lidar intensity coloring](img/writeup/representative_vehicle_intensity_views.png)
+
+Stable features that appear reliably in lidar:
+
+- outer corners and the rectangular ground footprint
+- strong vertical side surfaces
+- upper body outline / roofline on nearer vehicles
+- front or rear face patches when the viewing angle is favorable
+
+Relationship to the intensity channel:
+
+- The strongest intensity returns are not spread uniformly over the vehicle.
+- In the dense example above, the top `5%` of intensity values were concentrated near one lateral surface and corner structure, while none of those top returns were near the roof. That is consistent with stronger returns from more reflective or more perpendicular body surfaces than from the flatter roof panel.
+- This matches the stacked range/intensity image as well: intensity is most helpful for highlighting sharp, reflective vehicle structure rather than filling in every visible surface.
+
+## Step 2: Create birds-eye view from lidar point cloud
+
+Implemented in `student/objdet_pcl.py::bev_from_pcl`.
+
+### ID_S2_EX1 - Convert sensor coordinates to BEV-map coordinates
+
+What I implemented:
+
+- computed the BEV discretization from the configured detection range
+- mapped metric `x` positions into BEV row indices
+- mapped metric `y` positions into centered BEV column indices
+- clipped all indices to valid BEV limits
+
+### ID_S2_EX2 - Compute the intensity layer of the BEV map
+
+What I implemented:
+
+- created the BEV intensity map buffer
+- sorted the filtered point cloud lexicographically by BEV cell and descending height
+- kept the top-most point in each occupied BEV cell
+- normalized intensity with percentile clipping
+- wrote the normalized intensities into the BEV map
+
+### ID_S2_EX3 - Compute the height layer of the BEV map
+
+What I implemented:
+
+- created the BEV height map buffer
+- reused the top-point-per-cell point cloud
+- normalized height against the configured lidar `z` limits
+- assembled the final 3-channel BEV tensor from intensity, height, and density
+
+Validation:
+
+- passed a synthetic point cloud through `bev_from_pcl` and confirmed a valid output tensor of shape `(1, 3, 608, 608)`
+- ran `bev_from_pcl` on real frame-0 lidar data from sequence 1
+- compared the generated tensor against the cached BEV tensor from `results/`
+- obtained an exact shape match and a mean absolute difference of `0.0006176048191264272`
+
+Interpretation:
+
+The low difference to the cached reference indicates that the BEV coordinate mapping and the intensity/height channel construction match the intended project behavior closely enough for downstream detection and evaluation.
+
+## Step 3: Model-based object detection in BEV image
+
+Implemented in `student/objdet_detect.py`.
+
+### ID_S3_EX1 - Add a second model from a GitHub repo
+
+What I implemented:
+
+- added `fpn_resnet` configuration values based on the integrated SFA3D-style setup
+- added the required model heads for that network
+- instantiated the model via `fpn_resnet.get_pose_net(...)`
+- added the decode and post-processing path for `fpn_resnet`
+- added `configs.min_iou = 0.5` because `loop_over_dataset.py` expects it for the later evaluation step
+
+### ID_S3_EX2 - Extract 3D bounding boxes from model response
+
+What I implemented:
+
+- decoded the BEV detections into project-format objects
+- converted pixel-space center coordinates back into metric vehicle coordinates
+- converted BEV width/length back into metric dimensions
+- preserved the required output format:
+
+`[1, x, y, z, h, w, l, yaw]`
+
+Validation:
+
+- exercised the decode-and-convert path with a synthetic model output
+- verified valid positive box dimensions and correct output shape
+- validated the full visualization/evaluation flow with cached detections from the repository
+
+Because local pretrained weights are missing, the image below uses cached detections rather than live local inference. It still validates that the downstream BEV visualization, label projection, and evaluation interfaces are wired correctly.
+
+![Cached detections projected into camera and BEV for sequence 1 frame 50](img/writeup/cached_detection_overlay_frame50.png)
+
+Observation:
+
+The cached detections align well with the labeled traffic participants in the drivable corridor. The BEV view is especially useful because the metric box extents and yaw are easier to judge there than in the camera projection.
+
+## Step 4: Performance evaluation for object detection
+
+Implemented in `student/objdet_eval.py`.
+
+### ID_S4_EX1 - Compute intersection over union between labels and detections
+
+What I implemented:
+
+- computed detection and label box corners with `tools.compute_box_corners`
+- converted them into `shapely.geometry.Polygon` objects
+- computed pairwise intersection-over-union
+- computed center deviations in `x`, `y`, and `z`
+- retained the highest-IoU match per valid label
+
+### ID_S4_EX2 - Compute false-negatives and false-positives
+
+What I implemented:
+
+- counted valid positives from `labels_valid`
+- computed false negatives as `all_positives - true_positives`
+- computed false positives as `len(detections) - true_positives`
+
+### ID_S4_EX3 - Compute precision and recall
+
+What I implemented:
+
+- aggregated positives, true positives, false negatives, and false positives across frames
+- computed precision and recall from the accumulated counts
+
+Function-level smoke test:
+
+- a synthetic perfect-match example returned:
+  - IoU = `1.0`
+  - center deviation = `[0.0, 0.0, 0.0]`
+  - positives / TP / FN / FP = `[1, 1, 0, 0]`
+
+Validation on real project data:
+
+Using cached detections for sequence 1 over frames `50` to `150`, the evaluation code produced:
+
+| Metric | Value |
+| --- | ---: |
+| Positives | `306` |
+| True positives | `264` |
+| False negatives | `42` |
+| False positives | `7` |
+| Precision | `0.974169741697417` |
+| Recall | `0.8627450980392157` |
+
+As a sanity check, using labels-as-objects over the same frame range produced the expected perfect baseline:
+
+- precision = `1.0`
+- recall = `1.0`
+
+![Detection performance histograms over sequence 1 frames 50-150](img/writeup/detection_performance_histograms.png)
+
+> [!NOTE]
+> **Interpretation**:
+> Precision is very high, which means the cached detector produces few false alarms in this range. Recall is lower than precision, so the dominant remaining error mode is missed vehicles rather than spurious detections.
+
+## Summary
+
+All required student tasks for Steps 1 through 4 are implemented and validated in this repository.
+
+The strongest evidence from this run is:
+
+- real range-image generation from Waymo data
+- real point-cloud visibility analysis over ten labeled vehicles
+- BEV generation matching cached reference output with very small error
+- real detection/evaluation metrics over frames `50-150`
+
+The only missing local ingredient for a fully live demonstration is the pretrained `.pth` checkpoint set for the integrated detection network. If those weights are added later, the same pipeline can be rerun with live local inference instead of cached detections.
+
+## Starter-template answers: "Track 3D-Objects Over Time"
+
+The starter template text refers to the later tracking project, while this repository task was the mid-term 3D object detection project. To avoid claiming work that was not implemented, I answer the four questions below using the work that was actually completed here and I point out where full tracking or camera-lidar fusion was out of scope.
+
+### 1. Short recap of the four steps, achieved results, and most difficult part
+
+In this project, the four implemented steps were:
+
+- **Range-image processing:** I extracted and normalized the TOP lidar range and intensity channels. The resulting visualization for sequence 1 frame 0 had shape `(128, 2650)` and covered the full `0-255` display range.
+- **Point-cloud and BEV generation:** I added the Open3D point-cloud viewer and implemented BEV coordinate conversion plus the intensity and height layers. On real frame-0 data, the generated BEV tensor matched the cached reference shape exactly and differed by only `0.0006176048191264272` mean absolute error.
+- **BEV object detection:** I integrated the `fpn_resnet` path, model configuration, decode logic, and metric-space box conversion. Live local inference could not be demonstrated because pretrained `.pth` weights were not available, but the decode path was smoke-tested and the downstream flow worked with cached detections.
+- **Detection evaluation:** I implemented IoU matching, TP/FN/FP counting, and precision/recall aggregation. On cached detections over sequence 1 frames `50-150`, the results were `precision = 0.974169741697417` and `recall = 0.8627450980392157`.
+
+The most difficult part was the model/evaluation integration rather than the visualization steps. The hardest issues were not only the missing student TODOs, but also the surrounding runtime details: protobuf compatibility with the bundled Waymo reader, the missing pretrained weights, the cached-file naming mismatch, and the need to make the main loop work cleanly with cached detections.
+
+### 2. Benefits of camera-lidar fusion vs. lidar-only tracking
+
+In theory, camera-lidar fusion gives a clear advantage over lidar-only perception:
+
+- lidar gives stable metric geometry, distance, and object extent
+- camera adds semantic detail, appearance cues, and richer information at long range
+- together they help disambiguate objects that look sparse or incomplete in one modality alone
+
+In this repository, I did **not** implement the full tracking-stage camera fusion from the later project, so I do not have a numeric fused-vs-lidar-only tracking comparison. Still, the qualitative results here show why fusion is useful. The point-cloud examples under `img/writeup/vehicle_visibility_examples.png` show that vehicles at roughly `50-75 m` can become very sparse in lidar, while the camera projection in `img/writeup/cached_detection_overlay_frame50.png` still provides a much richer visual cue about the object. So even though my concrete implementation stayed on the detection project, the results already show the main reason fusion helps: lidar stays strong geometrically, while camera can support recognition when lidar becomes sparse.
+
+### 3. Real-life challenges for a sensor-fusion system
+
+A real sensor-fusion system has to deal with:
+
+- sparse lidar returns at long range
+- partial occlusion by other traffic participants
+- calibration and synchronization errors between sensors
+- varying reflectivity, lighting, and weather
+- missed detections and false alarms from imperfect models
+
+I saw several of these issues in the project results. The ten vehicle examples show that long-range vehicles can collapse to just a handful of lidar returns. The evaluation metrics also show the same pattern: precision is high, but recall is lower, which means the larger practical problem in this run is missed vehicles rather than excessive false positives. That is exactly the kind of challenge a real fusion system has to address.
+
+### 4. Ways to improve the results in the future
+
+There are several realistic next improvements:
+
+- add the missing pretrained `.pth` checkpoints and rerun the detector fully live instead of relying on cached detections
+- add true temporal tracking on top of the detector so missed detections in one frame can be stabilized with motion continuity
+- fuse camera features with lidar detections to improve long-range and partially occluded cases
+- tune score/IoU thresholds for a better precision-recall balance
+- train or fine-tune the detector on more diverse data to improve recall
+- incorporate uncertainty handling, calibration checks, and stronger temporal association logic for real deployment
+
+So the short answer is: the current project produced strong detection and evaluation results, but the biggest remaining gains would come from moving from single-frame lidar-heavy detection toward a full multi-sensor, multi-frame fusion and tracking pipeline.

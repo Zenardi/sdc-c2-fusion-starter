@@ -1,0 +1,10 @@
+example=1 seq=training_segment-1005081002024129653_5313_150_5333_150_with_camera_labels frame=131 label=5 points=3 distance_m=61.55 visibility=very sparse
+example=2 seq=training_segment-1005081002024129653_5313_150_5333_150_with_camera_labels frame=35 label=4 points=23 distance_m=51.23 visibility=sparse
+example=3 seq=training_segment-1005081002024129653_5313_150_5333_150_with_camera_labels frame=55 label=5 points=51 distance_m=51.01 visibility=moderate
+example=4 seq=training_segment-1005081002024129653_5313_150_5333_150_with_camera_labels frame=152 label=8 points=84 distance_m=74.56 visibility=moderate
+example=5 seq=training_segment-1005081002024129653_5313_150_5333_150_with_camera_labels frame=80 label=6 points=140 distance_m=51.06 visibility=moderate
+example=6 seq=training_segment-1005081002024129653_5313_150_5333_150_with_camera_labels frame=197 label=3 points=230 distance_m=40.03 visibility=moderate
+example=7 seq=training_segment-1005081002024129653_5313_150_5333_150_with_camera_labels frame=4 label=7 points=431 distance_m=32.71 visibility=good
+example=8 seq=training_segment-1005081002024129653_5313_150_5333_150_with_camera_labels frame=159 label=8 points=751 distance_m=25.24 visibility=good
+example=9 seq=training_segment-1005081002024129653_5313_150_5333_150_with_camera_labels frame=63 label=7 points=1362 distance_m=19.26 visibility=good
+example=10 seq=training_segment-1005081002024129653_5313_150_5333_150_with_camera_labels frame=50 label=0 points=4621 distance_m=9.35 visibility=dense
