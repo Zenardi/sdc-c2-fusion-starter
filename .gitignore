@@ -3,3 +3,5 @@ dataset
 .venv
 __pycache__
 results
+*.pth
+*.cfg
