@@ -228,12 +228,14 @@ def project_detections_into_bev(bev_map, detections, configs, color=[]):
         bev_corners[3, 1] = y + w / 2 * sin_yaw + l / 2 * cos_yaw
         
         # draw object as box
-        corners_int = bev_corners.reshape(-1, 1, 2).astype(int)
+        corners_int = np.round(bev_corners.reshape(-1, 1, 2)).astype(np.int32)
         cv2.polylines(bev_map, [corners_int], True, color, 2)
 
         # draw colored line to identify object front
-        corners_int = bev_corners.reshape(-1, 2)
-        cv2.line(bev_map, (corners_int[0, 0], corners_int[0, 1]), (corners_int[3, 0], corners_int[3, 1]), (255, 255, 0), 2)
+        corners_int = np.round(bev_corners.reshape(-1, 2)).astype(np.int32)
+        pt1 = tuple(map(int, corners_int[0]))
+        pt2 = tuple(map(int, corners_int[3]))
+        cv2.line(bev_map, pt1, pt2, (255, 255, 0), 2)
 
 
 
@@ -433,4 +435,3 @@ def project_labels_into_camera(camera_calibration, image, labels, labels_valid, 
         return img_resized
     else:
         return image
-
