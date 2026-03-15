@@ -11,16 +11,16 @@
 #
 
 # imports
+import os
 import numpy as np
 import matplotlib
-matplotlib.use('wxagg') # change backend so that figure maximizing works on Mac as well     
+matplotlib.use(os.environ.get('MPLBACKEND', 'Agg'))
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.path import Path
 from matplotlib import colors
 from matplotlib.transforms import Affine2D
 import matplotlib.ticker as ticker
-import os
 import cv2
 
 # add project directory to python path to enable relative imports

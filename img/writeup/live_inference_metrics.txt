@@ -1,0 +1,22 @@
+live
+  positives: 306
+  true_positives: 272
+  false_negatives: 34
+  false_positives: 6
+  precision: 0.9784172661870504
+  recall: 0.8888888888888888
+  mean_iou: 0.7444198355265861
+  mean_dev_x: -0.11787454170339248
+  mean_dev_y: 0.049321465851629484
+  mean_dev_z: 0.7613885880393141
+cached
+  positives: 306
+  true_positives: 264
+  false_negatives: 42
+  false_positives: 7
+  precision: 0.974169741697417
+  recall: 0.8627450980392157
+  mean_iou: 0.7535504698635198
+  mean_dev_x: -0.0881241193954635
+  mean_dev_y: 0.0699395195115131
+  mean_dev_z: -0.03301606957480005

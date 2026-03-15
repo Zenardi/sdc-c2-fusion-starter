@@ -1,8 +1,33 @@
-
 # SDCND : Sensor Fusion and Tracking
+
+- [SDCND : Sensor Fusion and Tracking](#sdcnd--sensor-fusion-and-tracking)
+  - [Project File Structure](#project-file-structure)
+  - [Installation Instructions for Running Locally](#installation-instructions-for-running-locally)
+    - [Cloning the Project](#cloning-the-project)
+    - [Python](#python)
+    - [Package Requirements](#package-requirements)
+    - [Waymo Open Dataset Reader](#waymo-open-dataset-reader)
+    - [Waymo Open Dataset Files](#waymo-open-dataset-files)
+    - [Pre-Trained Models](#pre-trained-models)
+    - [Using Pre-Computed Results](#using-pre-computed-results)
+  - [Run and Validate Locally](#run-and-validate-locally)
+    - [Matplotlib backend](#matplotlib-backend)
+    - [How to choose what runs](#how-to-choose-what-runs)
+    - [Recommended validation runs](#recommended-validation-runs)
+      - [1. Step 1: range image](#1-step-1-range-image)
+      - [2. Step 1: point cloud viewer](#2-step-1-point-cloud-viewer)
+      - [3. Step 2: birds-eye view generation](#3-step-2-birds-eye-view-generation)
+      - [4. Step 3: visualize cached detections](#4-step-3-visualize-cached-detections)
+      - [5. Step 4: recompute detection metrics from cached detections](#5-step-4-recompute-detection-metrics-from-cached-detections)
+      - [6. Step 4 sanity check: perfect baseline using labels as objects](#6-step-4-sanity-check-perfect-baseline-using-labels-as-objects)
+      - [7. Full live detection run after adding pretrained weights](#7-full-live-detection-run-after-adding-pretrained-weights)
+  - [External Dependencies](#external-dependencies)
+  - [License](#license)
+
 This is the project for the second course in the  [Udacity Self-Driving Car Engineer Nanodegree Program](https://www.udacity.com/course/c-plus-plus-nanodegree--nd213) : Sensor Fusion and Tracking. 
 
 In this project, you'll fuse measurements from LiDAR and camera and track vehicles over time. You will be using real-world data from the Waymo Open Dataset, detect objects in 3D point clouds and apply an extended Kalman filter for sensor fusion and tracking.
+
 
 <img src="img/img_title_1.jpeg"/>
 
@@ -15,6 +40,8 @@ The following diagram contains an outline of the data flow and of the individual
 <img src="img/img_title_2_new.png"/>
 
 Also, the project code contains various tasks, which are detailed step-by-step in the code. More information on the algorithm and on the tasks can be found in the Udacity classroom. 
+
+
 
 ## Project File Structure
 
@@ -72,6 +99,15 @@ The project has been written using Python 3.7. Please make sure that your local 
 All dependencies required for the project have been listed in the file `requirements.txt`. You may either install them one-by-one using pip or you can use the following command to install them all at once: 
 `pip3 install -r requirements.txt` 
 
+For a clean local setup, the following sequence is recommended:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
 ### Waymo Open Dataset Reader
 The Waymo Open Dataset Reader is a very convenient toolbox that allows you to access sequences from the Waymo Open Dataset without the need of installing all of the heavy-weight dependencies that come along with the official toolbox. The installation instructions can be found in `tools/waymo_reader/README.md`. 
 
@@ -89,7 +125,7 @@ The sequences listed above can be found in the folder "training". Please downloa
 
 
 ### Pre-Trained Models
-The object detection methods used in this project use pre-trained models which have been provided by the original authors. They can be downloaded [here](https://drive.google.com/file/d/1Pqx7sShlqKSGmvshTYbNDcUEYyZwfn3A/view?usp=sharing) (darknet) and [here](https://drive.google.com/file/d/1RcEfUIF1pzDZco8PJkZ10OL-wLL2usEj/view?usp=sharing) (fpn_resnet). Once downloaded, please copy the model files into the paths `/tools/objdet_models/darknet/pretrained` and `/tools/objdet_models/fpn_resnet/pretrained` respectively.
+The object detection methods used in this project use pre-trained models which have been provided by the original authors. They can be downloaded [here](https://drive.google.com/file/d/1Pqx7sShlqKSGmvshTYbNDcUEYyZwfn3A/view?usp=sharing) (darknet) and [here](https://drive.google.com/file/d/1RcEfUIF1pzDZco8PJkZ10OL-wLL2usEj/view?usp=sharing) (fpn_resnet). Once downloaded, please copy the model files into the paths `/tools/objdet_models/darknet/pretrained` and `/tools/objdet_models/resnet/pretrained` respectively.
 
 ### Using Pre-Computed Results
 
@@ -121,6 +157,186 @@ In case you do not include a specific step into the list, pre-computed binary fi
 Even without solving any of the tasks, the project code can be executed. 
 
 The final project uses pre-computed lidar detections in order for all students to have the same input data. If you use the workspace, the data is prepared there already. Otherwise, [download the pre-computed lidar detections](https://drive.google.com/drive/folders/1IkqFGYTF6Fh_d8J3UjQOSNJ2V42UDZpO?usp=sharing) (~1 GB), unzip them and put them in the folder `results`.
+
+## Run and Validate Locally
+
+The main entry point for this repository is:
+
+```bash
+python3 loop_over_dataset.py
+```
+
+Before running it, activate your environment and do a quick syntax check:
+
+```bash
+source .venv/bin/activate
+python3 -m py_compile loop_over_dataset.py student/objdet_pcl.py student/objdet_detect.py student/objdet_eval.py misc/evaluation.py
+```
+
+### Matplotlib backend
+
+If you want GUI windows for plots and OpenCV visualizations, use:
+
+```bash
+export MPLBACKEND=TkAgg
+```
+
+If you only want non-interactive plotting, use:
+
+```bash
+export MPLBACKEND=Agg
+```
+
+### How to choose what runs
+
+Execution is controlled in `loop_over_dataset.py` through:
+
+- `exec_detection`
+- `exec_tracking`
+- `exec_visualization`
+
+After changing those lists, run:
+
+```bash
+python3 loop_over_dataset.py
+```
+
+### Recommended validation runs
+
+#### 1. Step 1: range image
+
+Set:
+
+```python
+exec_detection = []
+exec_tracking = []
+exec_visualization = ['show_range_image']
+```
+
+Then run:
+
+```bash
+python3 loop_over_dataset.py
+```
+
+#### 2. Step 1: point cloud viewer
+
+Set:
+
+```python
+exec_detection = []
+exec_tracking = []
+exec_visualization = ['show_pcl']
+```
+
+Then run:
+
+```bash
+python3 loop_over_dataset.py
+```
+
+#### 3. Step 2: birds-eye view generation
+
+Set:
+
+```python
+exec_detection = ['bev_from_pcl']
+exec_tracking = []
+exec_visualization = ['show_bev']
+```
+
+Then run:
+
+```bash
+python3 loop_over_dataset.py
+```
+
+#### 4. Step 3: visualize cached detections
+
+This works even if pretrained model weights are not available locally.
+
+Set:
+
+```python
+configs_det.use_labels_as_objects = False
+exec_detection = []
+exec_tracking = []
+exec_visualization = ['show_objects_in_bev_labels_in_camera']
+```
+
+Then run:
+
+```bash
+python3 loop_over_dataset.py
+```
+
+#### 5. Step 4: recompute detection metrics from cached detections
+
+Set:
+
+```python
+show_only_frames = [50, 150]
+configs_det.use_labels_as_objects = False
+exec_detection = ['validate_object_labels', 'measure_detection_performance']
+exec_tracking = []
+exec_visualization = ['show_detection_performance']
+```
+
+Then run:
+
+```bash
+python3 loop_over_dataset.py
+```
+
+#### 6. Step 4 sanity check: perfect baseline using labels as objects
+
+Set:
+
+```python
+show_only_frames = [50, 150]
+configs_det.use_labels_as_objects = True
+exec_detection = ['validate_object_labels', 'measure_detection_performance']
+exec_tracking = []
+exec_visualization = ['show_detection_performance']
+```
+
+Then run:
+
+```bash
+python3 loop_over_dataset.py
+```
+
+#### 7. Full live detection run after adding pretrained weights
+
+Place the pretrained files at:
+
+```text
+tools/objdet_models/darknet/pretrained/complex_yolov4_mse_loss.pth
+tools/objdet_models/resnet/pretrained/fpn_resnet_18_epoch_300.pth
+```
+
+Then use:
+
+```python
+configs_det.use_labels_as_objects = False
+exec_detection = ['bev_from_pcl', 'detect_objects', 'validate_object_labels', 'measure_detection_performance']
+exec_tracking = []
+exec_visualization = ['show_objects_in_bev_labels_in_camera', 'show_detection_performance']
+```
+
+Then run:
+
+```bash
+python3 loop_over_dataset.py
+```
+
+For the same evaluation window used in the final writeup, also set:
+
+```python
+show_only_frames = [50, 150]
+```
+
+This live `fpn_resnet` run was validated locally and produced precision/recall values of approximately `0.9784 / 0.8889` on sequence 1 for frames `50-150`.
 
 ## External Dependencies
 Parts of this project are based on the following repositories: 
