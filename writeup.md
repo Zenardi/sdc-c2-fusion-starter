@@ -80,31 +80,31 @@ What I implemented:
 - reused the same geometry object across frames
 - updated points in place instead of rebuilding the viewer every iteration
 
-To satisfy the writeup requirement, I extracted ten real vehicle examples with varying visibility from cached lidar point clouds. The figure below shows a local crop around each vehicle. Gray points provide context; colored points are lidar returns inside the labeled vehicle box, colored by intensity.
+To satisfy the writeup requirement, I visualized vehicle point clouds from sequence 3 (`training_segment-10963653239323173269_1924_000_1944_000`) using the Open3D viewer implemented in `show_pcl`, and exported ten representative vehicle examples as static figures for this document. The figure below shows a vehicle-local 3D point-cloud view for each example, rendered with an oblique camera angle. Gray points provide local context; colored points are lidar returns inside the labeled vehicle box, colored by intensity. The figure can be regenerated from repository data with `python3 misc/generate_pointcloud_figures.py`.
 
 ![Ten vehicle point-cloud examples with varying visibility](img/writeup/vehicle_visibility_examples.png)
 
 | Example | Frame | In-box points | Distance [m] | Visibility |
 | --- | ---: | ---: | ---: | --- |
-| 1 | 131 | 3 | 61.55 | very sparse |
-| 2 | 35 | 23 | 51.23 | sparse |
-| 3 | 55 | 51 | 51.01 | moderate |
-| 4 | 152 | 84 | 74.56 | moderate |
-| 5 | 80 | 140 | 51.06 | moderate |
-| 6 | 197 | 230 | 40.03 | moderate |
-| 7 | 4 | 431 | 32.71 | good |
-| 8 | 159 | 751 | 25.24 | good |
-| 9 | 63 | 1362 | 19.26 | good |
-| 10 | 50 | 4621 | 9.35 | dense |
+| 1 | 0 | 0 | 66.09 | occluded |
+| 2 | 143 | 0 | 76.78 | occluded |
+| 3 | 126 | 5 | 53.76 | very sparse |
+| 4 | 16 | 15 | 38.77 | very sparse |
+| 5 | 78 | 27 | 55.84 | sparse |
+| 6 | 191 | 45 | 40.46 | sparse |
+| 7 | 50 | 79 | 75.20 | moderate |
+| 8 | 192 | 142 | 49.16 | moderate |
+| 9 | 32 | 270 | 62.29 | dense |
+| 10 | 44 | 12322 | 4.12 | very dense |
 
 Qualitative findings from these ten examples:
 
-- At long range, visibility drops quickly. The sparsest vehicles at roughly `50-75 m` are represented by only a few points, usually on outer corners or one exposed face.
-- Around `40-55 m`, vehicles become more recognizable, but only partial structure is visible. Typical returns outline one side wall, the rear/front edge, and part of the roofline.
-- Inside roughly `20-35 m`, the rectangular footprint becomes stable and dense enough that the vehicle extent is easy to estimate directly from the point cloud.
-- The closest example (`9.35 m`) preserves the full footprint and multiple vertical surfaces, which is why near vehicles are much easier for the downstream BEV detector and evaluation pipeline.
+- At very long range (66–77 m) or when fully behind another vehicle, zero lidar returns are observed — the label box exists but no point reaches the surface.
+- At 38–56 m, 5–45 points are returned from one exposed face or rear edge, giving a rough depth cue but no reliable shape.
+- At 40–75 m with a favorable angle, 27–142 points build a partial outline — one or two surfaces become distinguishable.
+- The dense examples (270 pts at 62 m; 12 322 pts at 4 m) preserve the full footprint and multiple vertical surfaces, enabling direct box estimation.
 
-To inspect the stable features more closely, I rendered the densest example in a vehicle-local coordinate frame:
+To inspect the stable features more closely, I rendered the densest example (frame 44, 12 322 in-box points, 4.1 m, sequence 3) in a vehicle-local coordinate frame across four viewpoints:
 
 ![Representative dense vehicle with lidar intensity coloring](img/writeup/representative_vehicle_intensity_views.png)
 
@@ -115,11 +115,13 @@ Stable features that appear reliably in lidar:
 - upper body outline / roofline on nearer vehicles
 - front or rear face patches when the viewing angle is favorable
 
-Relationship to the intensity channel:
+Relationship to the intensity channel (underpinned by the range image below):
 
 - The strongest intensity returns are not spread uniformly over the vehicle.
-- In the dense example above, the top `5%` of intensity values were concentrated near one lateral surface and corner structure, while none of those top returns were near the roof. That is consistent with stronger returns from more reflective or more perpendicular body surfaces than from the flatter roof panel.
-- This matches the stacked range/intensity image as well: intensity is most helpful for highlighting sharp, reflective vehicle structure rather than filling in every visible surface.
+- In the dense example above, the top `5%` of intensity values were concentrated near one lateral surface and corner structure, while the roof panel produced lower, more uniform returns — consistent with weaker reflectivity on a flat horizontal surface.
+- This pattern is visible directly in the range image intensity channel (bottom half of the figure): bright spots appear on vehicle edges and number plates, while the roof blends with surrounding background values.
+
+![Range and intensity image — sequence 3, frame 44 (densest vehicle example)](img/writeup/range_image_seq3_dense_frame.png)
 
 ## Step 2: Create birds-eye view from lidar point cloud
 
@@ -284,7 +286,7 @@ All required student tasks for Steps 1 through 4 are implemented and validated i
 The strongest evidence from this run is:
 
 - real range-image generation from Waymo data
-- real point-cloud visibility analysis over ten labeled vehicles
+- real point-cloud visibility analysis over ten labeled vehicles from sequence 3
 - BEV generation matching cached reference output with very small error
 - real live `fpn_resnet` detection/evaluation metrics over frames `50-150`
 - live detector visual evidence from frame 50 using the locally installed pretrained weights
@@ -324,7 +326,7 @@ A real sensor-fusion system has to deal with:
 - varying reflectivity, lighting, and weather
 - missed detections and false alarms from imperfect models
 
-I saw several of these issues in the project results. The ten vehicle examples show that long-range vehicles can collapse to just a handful of lidar returns. The evaluation metrics also show the same pattern: precision is high, but recall is lower, which means the larger practical problem in this run is missed vehicles rather than excessive false positives. That is exactly the kind of challenge a real fusion system has to address.
+I saw several of these issues in the project results. The ten vehicle examples from sequence 3 show that long-range vehicles can collapse to just a handful of lidar returns. The evaluation metrics also show the same pattern: precision is high, but recall is lower, which means the larger practical problem in this run is missed vehicles rather than excessive false positives. That is exactly the kind of challenge a real fusion system has to address.
 
 ### 4. Ways to improve the results in the future
 
