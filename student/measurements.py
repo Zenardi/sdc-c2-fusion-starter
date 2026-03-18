@@ -48,7 +48,14 @@ class Sensor:
         # otherwise False.
         ############
 
-        return True
+        # Transform from vehicle to sensor coordinates
+        pos_veh = np.ones((4, 1))
+        pos_veh[0:3] = x[0:3]
+        pos_sens = self.veh_to_sens * pos_veh
+
+        # Check horizontal angle in sensor frame; x_sens is the forward/depth axis
+        angle = np.arctan2(float(pos_sens[1, 0]), float(pos_sens[0, 0]))
+        return self.fov[0] <= angle <= self.fov[1]
         
         ############
         # END student code
@@ -71,7 +78,20 @@ class Sensor:
             # - return h(x)
             ############
 
-            pass
+            pos_veh = np.ones((4, 1))
+            pos_veh[0:3] = x[0:3]
+            pos_cam = self.veh_to_sens * pos_veh  # transform to camera coordinates
+
+            x_cam = float(pos_cam[0, 0])  # depth (forward) axis in camera frame
+            y_cam = float(pos_cam[1, 0])
+            z_cam = float(pos_cam[2, 0])
+
+            if x_cam == 0:
+                raise NameError('Division by zero in camera projection!')
+
+            u = self.c_i - self.f_i * y_cam / x_cam
+            v = self.c_j - self.f_j * z_cam / x_cam
+            return np.matrix([[u], [v]])
         
             ############
             # END student code
@@ -85,6 +105,9 @@ class Sensor:
         if self.name == 'lidar':
             H[0:3, 0:3] = R
         elif self.name == 'camera':
+            # Flatten x and T to ensure scalar indexing in the Jacobian computation
+            x = np.array(x).flatten()
+            T = np.array(T).flatten()
             # check and print error message if dividing by zero
             if R[0,0]*x[0] + R[0,1]*x[1] + R[0,2]*x[2] + T[0] == 0: 
                 raise NameError('Jacobian not defined for this x!')
@@ -115,9 +138,8 @@ class Sensor:
         # TODO Step 4: remove restriction to lidar in order to include camera as well
         ############
         
-        if self.name == 'lidar':
-            meas = Measurement(num_frame, z, self)
-            meas_list.append(meas)
+        meas = Measurement(num_frame, z, self)
+        meas_list.append(meas)
         return meas_list
         
         ############
@@ -156,7 +178,13 @@ class Measurement:
             # TODO Step 4: initialize camera measurement including z and R 
             ############
 
-            pass
+            sigma_cam_i = params.sigma_cam_i
+            sigma_cam_j = params.sigma_cam_j
+            self.z = np.zeros((sensor.dim_meas, 1))  # 2x1 measurement vector [i, j]
+            self.z[0] = z[0]  # image coordinate i
+            self.z[1] = z[1]  # image coordinate j
+            self.R = np.matrix([[sigma_cam_i**2, 0],
+                                [0, sigma_cam_j**2]])
         
             ############
             # END student code

@@ -56,9 +56,9 @@ def plot_tracks(fig, ax, ax2, track_list, meas_list, lidar_labels, lidar_labels_
             w = track.width
             h = track.height
             l = track.length
-            x = track.x[0]
-            y = track.x[1]
-            z = track.x[2] 
+            x = track.x[0, 0]
+            y = track.x[1, 0]
+            z = track.x[2, 0]
             yaw = track.yaw 
                 
             # plot boxes in top view
@@ -69,23 +69,23 @@ def plot_tracks(fig, ax, ax2, track_list, meas_list, lidar_labels, lidar_labels_
             ax.add_patch(rec)
             
             # write track id for debugging
-            ax.text(float(-track.x[1]), float(track.x[0]+1), str(track.id))
+            ax.text(float(-track.x[1,0]), float(track.x[0,0]+1), str(track.id))
            
             if track.state =='initialized':
-                ax.scatter(float(-track.x[1]), float(track.x[0]), color=col, s=80, marker='x', label='initialized track')
+                ax.scatter(float(-track.x[1,0]), float(track.x[0,0]), color=col, s=80, marker='x', label='initialized track')
             elif track.state =='tentative':
-                ax.scatter(float(-track.x[1]), float(track.x[0]), color=col, s=80, marker='x', label='tentative track')
+                ax.scatter(float(-track.x[1,0]), float(track.x[0,0]), color=col, s=80, marker='x', label='tentative track')
             elif track.state =='confirmed':
-                ax.scatter(float(-track.x[1]), float(track.x[0]), color=col, s=80, marker='x', label='confirmed track')
+                ax.scatter(float(-track.x[1,0]), float(track.x[0,0]), color=col, s=80, marker='x', label='confirmed track')
          
             # project tracks in image
             # transform from vehicle to camera coordinates
             pos_veh = np.ones((4, 1)) # homogeneous coordinates
             pos_veh[0:3] = track.x[0:3] 
             pos_sens = camera.veh_to_sens*pos_veh # transform from vehicle to sensor coordinates
-            x = pos_sens[0]
-            y = pos_sens[1]
-            z = pos_sens[2] 
+            x = pos_sens[0, 0]
+            y = pos_sens[1, 0]
+            z = pos_sens[2, 0]
             
             # compute rotation around z axis
             R = np.matrix([[np.cos(yaw), np.sin(yaw), 0],
@@ -143,7 +143,10 @@ def plot_tracks(fig, ax, ax2, track_list, meas_list, lidar_labels, lidar_labels_
     
     # maximize window        
     mng = plt.get_current_fig_manager()
-    mng.frame.Maximize(True)
+    try:
+        mng.frame.Maximize(True)
+    except AttributeError:
+        pass
     
     # axis 
     ax.set_xlabel('y [m]')
@@ -196,9 +199,9 @@ def plot_rmse(manager, all_labels, configs_det):
                 if valid: 
                     # check if label lies inside specified range
                     if label.box.center_x > configs_det.lim_x[0] and label.box.center_x < configs_det.lim_x[1] and label.box.center_y > configs_det.lim_y[0] and label.box.center_y < configs_det.lim_y[1]:
-                        error += (label.box.center_x - float(track.x[0]))**2
-                        error += (label.box.center_y - float(track.x[1]))**2
-                        error += (label.box.center_z - float(track.x[2]))**2
+                        error += (label.box.center_x - float(track.x[0,0]))**2
+                        error += (label.box.center_y - float(track.x[1,0]))**2
+                        error += (label.box.center_z - float(track.x[2,0]))**2
                         if error < min_error:
                             min_error = error
             if min_error < np.inf:
@@ -218,7 +221,10 @@ def plot_rmse(manager, all_labels, configs_det):
     
     # maximize window     
     mng = plt.get_current_fig_manager()
-    mng.frame.Maximize(True)
+    try:
+        mng.frame.Maximize(True)
+    except AttributeError:
+        pass
     ax.set_ylim(0,1)
     if plot_empty: 
         print('No confirmed tracks found to plot RMSE!')
@@ -243,5 +249,8 @@ def make_movie(path):
         video.write(cv2.imread(fname))
         os.remove(fname) # clean up
 
-    cv2.destroyAllWindows()
+    try:
+        cv2.destroyAllWindows()
+    except cv2.error:
+        pass
     video.release()
