@@ -291,51 +291,45 @@ The strongest evidence from this run is:
 - real live `fpn_resnet` detection/evaluation metrics over frames `50-150`
 - live detector visual evidence from frame 50 using the locally installed pretrained weights
 
-## Starter-template answers: "Track 3D-Objects Over Time"
+## Final Project: Sensor Fusion and Object Tracking
 
-The starter template text refers to the later tracking project, while this repository task was the mid-term 3D object detection project. To avoid claiming work that was not implemented, I answer the four questions below using the work that was actually completed here and I point out where full tracking or camera-lidar fusion was out of scope.
+The full final project writeup is in [`writeup-final.md`](writeup-final.md). The four tracking modules implemented are:
 
-### 1. Short recap of the four steps, achieved results, and most difficult part
+- `student/filter.py` — Extended Kalman Filter
+- `student/trackmanagement.py` — Track initialization, score management, and deletion
+- `student/association.py` — Single nearest-neighbor data association
+- `student/measurements.py` — Sensor and measurement models for lidar and camera
 
-In this project, the four implemented steps were:
+---
 
-- **Range-image processing:** I extracted and normalized the TOP lidar range and intensity channels. The resulting visualization for sequence 1 frame 0 had shape `(128, 2650)` and covered the full `0-255` display range.
-- **Point-cloud and BEV generation:** I added the Open3D point-cloud viewer and implemented BEV coordinate conversion plus the intensity and height layers. On real frame-0 data, the generated BEV tensor matched the cached reference shape exactly and differed by only `0.0006176048191264272` mean absolute error.
-- **BEV object detection:** I integrated the `fpn_resnet` path, model configuration, decode logic, and metric-space box conversion. After adding the pretrained checkpoint, I ran live local inference successfully on sequence 1.
-- **Detection evaluation:** I implemented IoU matching, TP/FN/FP counting, and precision/recall aggregation. On live `fpn_resnet` detections over sequence 1 frames `50-150`, the results were `precision = 0.9784172661870504` and `recall = 0.8888888888888888`.
+### Step 1: EKF — Track Objects Over Time with a Kalman Filter
 
-The most difficult part was the model/evaluation integration rather than the visualization steps. The hardest issues were not only the missing student TODOs, but also the surrounding runtime details: protobuf compatibility with the bundled Waymo reader, the cached-file naming mismatch, and the need to make the main loop work cleanly for both cached detections and live inference.
+**Scenario:** Sequence 2, frames 150–200, `lim_y = [-5, 10]`, lidar only
 
-### 2. Benefits of camera-lidar fusion vs. lidar-only tracking
+Implemented constant-velocity EKF with 6D state `[px, py, pz, vx, vy, vz]`. System matrix `F`, process noise `Q`, residual `gamma`, residual covariance `S`, and full predict/update cycle implemented in `student/filter.py`.
 
-In theory, camera-lidar fusion gives a clear advantage over lidar-only perception:
+![Step 1 RMSE](img/writeup_final/step1_rmse.png)
 
-- lidar gives stable metric geometry, distance, and object extent
-- camera adds semantic detail, appearance cues, and richer information at long range
-- together they help disambiguate objects that look sparse or incomplete in one modality alone
+**Result: Mean RMSE = 0.23** — below the 0.35 target for a single-target lidar-only scenario.
 
-In this repository, I did **not** implement the full tracking-stage camera fusion from the later project, so I do not have a numeric fused-vs-lidar-only tracking comparison. Still, the qualitative results here show why fusion is useful. The point-cloud examples under `img/writeup/vehicle_visibility_examples.png` show that vehicles at roughly `50-75 m` can become very sparse in lidar, while the camera projection in `img/writeup/live_detection_overlay_frame50.png` still provides a much richer visual cue about the object. So even though my concrete implementation stayed on the detection project, the results already show the main reason fusion helps: lidar stays strong geometrically, while camera can support recognition when lidar becomes sparse.
+---
 
-### 3. Real-life challenges for a sensor-fusion system
+### Step 2: Track Management — Initialize, Update and Delete Tracks
 
-A real sensor-fusion system has to deal with:
+**Scenario:** Sequence 2, frames 65–100, `lim_y = [-5, 15]`, lidar only
 
-- sparse lidar returns at long range
-- partial occlusion by other traffic participants
-- calibration and synchronization errors between sensors
-- varying reflectivity, lighting, and weather
-- missed detections and false alarms from imperfect models
+Implemented dynamic track initialization from unassigned lidar measurements, a score-based lifecycle (initialized → tentative → confirmed), and deletion based on score threshold and covariance growth. Implemented in `student/trackmanagement.py`.
 
-I saw several of these issues in the project results. The ten vehicle examples from sequence 3 show that long-range vehicles can collapse to just a handful of lidar returns. The evaluation metrics also show the same pattern: precision is high, but recall is lower, which means the larger practical problem in this run is missed vehicles rather than excessive false positives. That is exactly the kind of challenge a real fusion system has to address.
+![Step 2 RMSE](img/writeup_final/step2_rmse.png)
 
-### 4. Ways to improve the results in the future
+A new track is initialized automatically from unassigned measurements, confirmed quickly after consistent updates, and deleted cleanly after the vehicle leaves the visible range. The expected mean RMSE of 0.61 is caused by a systematic lidar y-offset (constant bias not correctable by the filter), which is mitigated in Step 4 with camera fusion.
 
-There are several realistic next improvements:
+---
 
-- add true temporal tracking on top of the detector so missed detections in one frame can be stabilized with motion continuity
-- fuse camera features with lidar detections to improve long-range and partially occluded cases
-- tune score/IoU thresholds for a better precision-recall balance
-- train or fine-tune the detector on more diverse data to improve recall
-- incorporate uncertainty handling, calibration checks, and stronger temporal association logic for real deployment
+### Step 3: Data Association and Step 4: Camera-Lidar Fusion
 
-So the short answer is: the current project produced strong detection and evaluation results, but the biggest remaining gains would come from moving from single-frame lidar-heavy detection toward a full multi-sensor, multi-frame fusion and tracking pipeline.
+See [`writeup-final.md`](writeup-final.md) for the full writeup covering:
+
+- Step 3 RMSE plots (multi-target lidar tracking, Seq 1, frames 0–200)
+- Step 4 RMSE plots (camera-lidar fusion, 3 confirmed tracks, all mean RMSE ≤ 0.25)
+- Detailed reflections on benefits of fusion, real-life challenges, and future improvements
