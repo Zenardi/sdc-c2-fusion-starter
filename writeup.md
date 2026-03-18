@@ -17,11 +17,10 @@
     - [ID\_S4\_EX2 - Compute false-negatives and false-positives](#id_s4_ex2---compute-false-negatives-and-false-positives)
     - [ID\_S4\_EX3 - Compute precision and recall](#id_s4_ex3---compute-precision-and-recall)
   - [Summary](#summary)
-  - [Starter-template answers: "Track 3D-Objects Over Time"](#starter-template-answers-track-3d-objects-over-time)
-    - [1. Short recap of the four steps, achieved results, and most difficult part](#1-short-recap-of-the-four-steps-achieved-results-and-most-difficult-part)
-    - [2. Benefits of camera-lidar fusion vs. lidar-only tracking](#2-benefits-of-camera-lidar-fusion-vs-lidar-only-tracking)
-    - [3. Real-life challenges for a sensor-fusion system](#3-real-life-challenges-for-a-sensor-fusion-system)
-    - [4. Ways to improve the results in the future](#4-ways-to-improve-the-results-in-the-future)
+  - [Final Project: Sensor Fusion and Object Tracking](#final-project-sensor-fusion-and-object-tracking)
+    - [Step 1: EKF — Track Objects Over Time with a Kalman Filter](#step-1-ekf--track-objects-over-time-with-a-kalman-filter)
+    - [Step 2: Track Management — Initialize, Update and Delete Tracks](#step-2-track-management--initialize-update-and-delete-tracks)
+    - [Step 3: Data Association and Step 4: Camera-Lidar Fusion](#step-3-data-association-and-step-4-camera-lidar-fusion)
 
 
 ## Overview
