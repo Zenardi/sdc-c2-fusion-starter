@@ -184,6 +184,8 @@ The tracking loop now processes lidar measurements followed by camera measuremen
 
 All three tracks significantly below the 0.25 target. Track 10 shows the largest RMSE improvement compared to lidar-only (0.19 → 0.12), as it benefits most from the camera's angular resolution for this trajectory.
 
+**Tracking movie:** [`media/my_tracking_results.avi`](media/my_tracking_results.avi) — 200 frames at 10 fps showing all confirmed tracks in birds-eye view and camera image.
+
 ---
 
 ## Recap and Reflections
