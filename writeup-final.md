@@ -2,10 +2,19 @@
 
 - [Writeup: Final Project - Sensor Fusion and Object Tracking](#writeup-final-project---sensor-fusion-and-object-tracking)
   - [Overview](#overview)
+    - [Reproducing the RMSE plots](#reproducing-the-rmse-plots)
   - [Step 1: Extended Kalman Filter (EKF)](#step-1-extended-kalman-filter-ekf)
+    - [What I implemented](#what-i-implemented)
+    - [Results](#results)
   - [Step 2: Track Management](#step-2-track-management)
+    - [What I implemented](#what-i-implemented-1)
+    - [Results](#results-1)
   - [Step 3: Single Nearest Neighbor Data Association](#step-3-single-nearest-neighbor-data-association)
+    - [What I implemented](#what-i-implemented-2)
+    - [Results](#results-2)
   - [Step 4: Camera-Lidar Sensor Fusion](#step-4-camera-lidar-sensor-fusion)
+    - [What I implemented](#what-i-implemented-3)
+    - [Results](#results-3)
   - [Recap and Reflections](#recap-and-reflections)
     - [1. Short recap of the four steps, results, and most difficult part](#1-short-recap-of-the-four-steps-results-and-most-difficult-part)
     - [2. Benefits of camera-lidar fusion vs. lidar-only tracking](#2-benefits-of-camera-lidar-fusion-vs-lidar-only-tracking)
@@ -25,6 +34,23 @@ The four implemented tracking modules are:
 - `student/measurements.py` — Sensor and measurement models for lidar and camera
 
 Pre-computed lidar detections from `results/Lidar_Detections_Tracking_Final_Project/` are used to decouple the tracking pipeline from the detection pipeline during development.
+
+### Reproducing the RMSE plots
+
+All RMSE plots can be regenerated from the repo root using `generate_step_rmse.py`:
+
+```bash
+python generate_step_rmse.py --step 1   # EKF, lidar-only      → img/writeup_final/step1_rmse.png
+python generate_step_rmse.py --step 2   # Track management      → img/writeup_final/step2_rmse.png
+python generate_step_rmse.py --step 3   # Association           → img/writeup_final/step3_rmse.png
+python generate_step_rmse.py --step 4   # Camera-lidar fusion   → img/writeup_final/step4_rmse.png
+```
+
+Each command uses the correct scenario (sequence, frame range, `lim_y`, and sensor mode) for that step and saves the figure automatically. No manual screenshotting is needed. To regenerate all four at once:
+
+```bash
+for step in 1 2 3 4; do python generate_step_rmse.py --step $step; done
+```
 
 ---
 
