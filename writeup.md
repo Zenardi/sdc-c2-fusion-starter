@@ -309,7 +309,7 @@ Implemented constant-velocity EKF with 6D state `[px, py, pz, vx, vy, vz]`. Syst
 
 ![Step 1 RMSE](img/writeup_final/step1_rmse.png)
 
-**Result: Mean RMSE = 0.23** — below the 0.35 target for a single-target lidar-only scenario.
+**Result: Mean RMSE = 0.28** — below the 0.35 target for a single-target lidar-only scenario.
 
 ---
 
@@ -321,7 +321,7 @@ Implemented dynamic track initialization from unassigned lidar measurements, a s
 
 ![Step 2 RMSE](img/writeup_final/step2_rmse.png)
 
-A new track is initialized automatically from unassigned measurements, confirmed quickly after consistent updates, and deleted cleanly after the vehicle leaves the visible range. The expected mean RMSE of 0.61 is caused by a systematic lidar y-offset (constant bias not correctable by the filter), which is mitigated in Step 4 with camera fusion.
+A new track is initialized automatically from unassigned measurements, confirmed quickly after consistent updates, and deleted cleanly after the vehicle leaves the visible range. The expected mean RMSE of 0.78 reflects the initial position uncertainty at track birth (filter starts with large covariance and converges), plus a systematic lidar y-offset (constant bias not correctable by the filter), which is mitigated in Step 4 with camera fusion.
 
 ---
 

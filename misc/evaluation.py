@@ -172,7 +172,7 @@ def plot_tracks(fig, ax, ax2, track_list, meas_list, lidar_labels, lidar_labels_
     return fig, ax, ax2
 
 
-def plot_rmse(manager, all_labels, configs_det):
+def plot_rmse(manager, all_labels, configs_det, save_path=None):
     fig, ax = plt.subplots()
     plot_empty = True
     
@@ -232,6 +232,9 @@ def plot_rmse(manager, all_labels, configs_det):
         plt.legend(loc='center left', shadow=True, fontsize='x-large', bbox_to_anchor=(0.9, 0.5))
         plt.xlabel('time [s]')
         plt.ylabel('RMSE [m]')
+        if save_path:
+            fig.savefig(save_path, bbox_inches='tight')
+            print('RMSE plot saved to', save_path)
         plt.show()
         
         

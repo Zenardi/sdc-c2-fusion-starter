@@ -69,7 +69,7 @@ Q = q² * [[dt³/3,     0,     0, dt²/2,     0,     0],
 
 ![Step 1 RMSE](img/writeup_final/step1_rmse.png)
 
-**Result: Mean RMSE = 0.23** — well below the 0.35 target over frames 150–200 of Sequence 2.
+**Result: Mean RMSE = 0.28** — well below the 0.35 target over frames 150–200 of Sequence 2.
 
 ---
 
@@ -101,7 +101,7 @@ Q = q² * [[dt³/3,     0,     0, dt²/2,     0,     0],
 
 A new track is initialized automatically from unassigned lidar measurements, confirmed quickly after several consistent updates, and deleted cleanly after the vehicle leaves the visible range. The console output shows `deleting track no. 0`.
 
-**Result: Mean RMSE = 0.61.** This is expected and caused by a systematic y-offset in the lidar detections (the Kalman filter assumes zero-mean noise and cannot compensate a constant bias). This bias is corrected once camera measurements are fused in Step 4.
+**Result: Mean RMSE = 0.78.** The RMSE starts at ~0.83 m and smoothly decreases to ~0.74 m as the filter converges over the confirmation window. The elevated starting error (compared to Step 1) reflects the initial position uncertainty at track birth — the covariance is large until sufficient measurements accumulate. The remaining bias is a systematic y-offset in the lidar detections that the Kalman filter cannot compensate (zero-mean noise assumption). This bias is corrected once camera measurements are fused in Step 4.
 
 ---
 
@@ -165,7 +165,7 @@ Multiple targets are tracked simultaneously. Each measurement is used at most on
 4. Returns 2×1 measurement vector `[u, v]`
 
 **`Sensor.generate_measurement()`**:
-- Removed the lidar-only restriction; both lidar and camera measurements are now appended to `meas_list`
+- Controlled by `params.tracking_sensors`; for Step 4 this is `['lidar', 'camera']`, so both sensor types generate measurements and are appended to `meas_list`
 
 **`Measurement.__init__()` for camera**:
 - Sets `z` as a 2×1 image coordinate vector `[i, j]`
@@ -215,7 +215,7 @@ All three tracks significantly below the 0.25 target. Track 10 shows the largest
 - In Step 3 (lidar only), tracks 0/1/10 achieved mean RMSE of 0.15/0.12/0.19 respectively
 - In Step 4 (camera + lidar), RMSE improved to 0.17/0.10/0.12 — Track 10 shows the largest gain (−37%)
 - Camera measurements provide additional updates for real objects while withholding updates from false lidar returns that have no corresponding camera detection, causing ghost tracks to lose score faster
-- The systematic lidar y-offset observed in Step 2 (RMSE = 0.61) was partially corrected in Step 4 because camera measurements contribute geometric constraints from a different viewpoint, diluting the lidar-specific bias
+- The systematic lidar y-offset observed in Step 2 (RMSE = 0.78) was partially corrected in Step 4 because camera measurements contribute geometric constraints from a different viewpoint, diluting the lidar-specific bias
 - The improvement is most pronounced for objects that happen to be at angles where the camera has high resolution and the lidar has sparse returns
 
 ---

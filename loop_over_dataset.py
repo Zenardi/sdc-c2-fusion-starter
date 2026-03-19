@@ -50,6 +50,16 @@ import misc.params as params
 ## Set parameters and perform initializations
 
 ## Select Waymo Open Dataset file and frame numbers
+# ── Step 1 (EKF, lidar-only): Sequence 2, frames 150-200, lim_y=[-5,10]
+# data_filename = 'training_segment-10072231702153043603_5725_000_5745_000_with_camera_labels.tfrecord' # Sequence 2
+# show_only_frames = [150, 200]
+
+# ── Step 2 (Track Management, lidar-only): Sequence 2, frames 65-100, lim_y=[-5,15]
+# data_filename = 'training_segment-10072231702153043603_5725_000_5745_000_with_camera_labels.tfrecord' # Sequence 2
+# show_only_frames = [65, 100]
+
+# ── Step 3 (Association, lidar-only): Sequence 1, frames 0-200, lim_y=[-25,25]
+# ── Step 4 (Camera-Lidar Fusion): Sequence 1, frames 0-200, lim_y=[-25,25]
 data_filename = 'training_segment-1005081002024129653_5313_150_5333_150_with_camera_labels.tfrecord' # Sequence 1
 # data_filename = 'training_segment-10072231702153043603_5725_000_5745_000_with_camera_labels.tfrecord' # Sequence 2
 # data_filename = 'training_segment-10963653239323173269_1924_000_1944_000_with_camera_labels.tfrecord' # Sequence 3
@@ -66,6 +76,7 @@ configs_det = det.load_configs(model_name='fpn_resnet') # options are 'darknet',
 configs_det.use_labels_as_objects = False # True = use groundtruth labels as objects, False = use model-based detection
 
 ## Uncomment this setting to restrict the y-range in the final project
+# ── lim_y per step: Step 1: [-5,10], Step 2: [-5,15], Steps 3-4: [-25,25]
 configs_det.lim_y = [-25, 25]
 
 ## Initialize tracking
@@ -294,7 +305,8 @@ if 'show_detection_performance' in exec_list:
 
 ## Plot RMSE for all tracks
 if 'show_tracks' in exec_list:
-    plot_rmse(manager, all_labels, configs_det)
+    rmse_save_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'img', 'writeup_final', 'rmse_latest.png')
+    plot_rmse(manager, all_labels, configs_det, save_path=rmse_save_path)
 
 ## Make movie from tracking results    
 if 'make_tracking_movie' in exec_list:
